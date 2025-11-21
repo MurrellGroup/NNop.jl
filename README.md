@@ -27,9 +27,9 @@ q = CuArray(rand(Float32, E, L, H, B))
 k = CuArray(rand(Float32, E, L, H, B))
 v = CuArray(rand(Float32, E, L, H, B))
 
-o = NNop.flash_attention(q, k, v; causal)
+o = ONIONop.flash_attention(q, k, v; causal)
 ∇ = Zygote.gradient(q, k, v) do q, k, v
-    sum(NNop.flash_attention(q, k, v; causal))
+    sum(ONIONop.flash_attention(q, k, v; causal))
 end
 ```
 
@@ -47,7 +47,7 @@ Implementation of [Online normalizer calculation for softmax](https://arxiv.org/
 
 ```julia
 x = CuArray(rand(Float32, 8192, 1024))
-y = NNop.online_softmax(x)
+y = ONIONop.online_softmax(x)
 ```
 
 ## RMS Norm
@@ -55,9 +55,9 @@ y = NNop.online_softmax(x)
 ```julia
 x = CuArray(rand(Float32, 1024, 1024))
 w = CuArray(rand(Float32, 1024))
-y = NNop.rms_norm(x, w)
+y = ONIONop.rms_norm(x, w)
 ∇ = Zygote.gradient(x, w) do x, w
-    sum(NNop.rms_norm(x, w))
+    sum(ONIONop.rms_norm(x, w))
 end
 ```
 
@@ -67,9 +67,9 @@ end
 x = CuArray(rand(Float32, 1024, 1024))
 w = CuArray(rand(Float32, 1024))
 w = CuArray(rand(Float32, 1024))
-y = NNop.layer_norm(x, w)
+y = ONIONop.layer_norm(x, w)
 ∇ = Zygote.gradient(x, w, b) do x, w, b
-    sum(NNop.layer_norm(x, w, b))
+    sum(ONIONop.layer_norm(x, w, b))
 end
 ```
 
@@ -79,7 +79,7 @@ end
 E, L, B = 16, 1024, 1
 QH, KH = 16, 16
 
-emb = NNop.LlamaRotaryEmbedding(E)
+emb = ONIONop.LlamaRotaryEmbedding(E)
 position_ids = reshape(collect(0f0:Float32(L) - 1f0), :, 1)
 position_ids = repeat(position_ids; inner=(1, B))
 
@@ -89,7 +89,7 @@ sin = Adapt.adapt(kab, sin)
 
 q = Adapt.adapt(kab, ones(Float32, (E, L, QH, B)))
 k = Adapt.adapt(kab, ones(Float32, (E, L, KH, B)))
-q, k = NNop.llama_rope(q, k; cos, sin)
+q, k = ONIONop.llama_rope(q, k; cos, sin)
 ```
 
 ## Acknowledgements
