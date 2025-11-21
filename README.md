@@ -11,6 +11,20 @@ Fused kernels (with [ChainRules.jl](https://github.com/JuliaDiff/ChainRules.jl) 
 - [Layer Norm](#layer-norm)
 - [Llama RoPE](#llama-rope)
 
+This project originates from [NNop.jl](https://github.com/pxl-th/NNop.jl)
+and would not have been possible without [Anton Smirnov](https://github.com/pxl-th).
+
+We're developing this fork to have hackable kernels for
+[Onion.jl](https://github.com/MurrellGroup/Onion.jl), which is also its namesake.
+
+## Installation
+
+```julia
+using Pkg
+Registry.add("https://github.com/MurrellGroup/MurrellGroupRegistry")
+Pkg.add("Onion")
+```
+
 ## Benchmarking
 
 See `benchmarks/main.jl` for comparison scripts between naїve & fused versions.
@@ -91,8 +105,3 @@ q = Adapt.adapt(kab, ones(Float32, (E, L, QH, B)))
 k = Adapt.adapt(kab, ones(Float32, (E, L, KH, B)))
 q, k = ONIONop.llama_rope(q, k; cos, sin)
 ```
-
-## Acknowledgements
-
-This project originates from [NNop.jl](https://github.com/pxl-th/NNop.jl)
-and would not have been possible without [Anton Smirnov](https://github.com/pxl-th).
