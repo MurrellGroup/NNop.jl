@@ -1,4 +1,4 @@
-module NNop
+module ONIONop
 
 using KernelAbstractions
 using KernelAbstractions.Extras: @unroll
@@ -8,23 +8,17 @@ using LRUCache: LRU
 
 import ChainRulesCore as CRC
 import KernelAbstractions as KA
-import SIMD
 
-Maybe{T} = Union{T, Nothing}
+const Maybe{T} = Union{T, Nothing}
 
-include("simd.jl")
 include("groupreduce.jl")
 include("softmax.jl")
-include("mma.jl")
-include("attention.jl")
-include("attention_bwd.jl")
-include("attention_crc.jl")
-include("rms_norm.jl")
-include("layer_norm.jl")
+include("attention/attention.jl")
+include("norm/norm.jl")
 
 include("rope/llama_rope.jl")
 
-@memoize LRU{Tuple{Any, Integer}, UInt64}(maxsize=32) shared_memory(kab, device_id::Integer) =
+@memoize LRU{Tuple{Any,Integer},UInt64}(maxsize=32) shared_memory(kab, device_id::Integer) =
     _shared_memory(kab, device_id)
 
 _shared_memory(kab, device_id::Integer) = error("Not implemented.")

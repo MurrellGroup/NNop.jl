@@ -1,4 +1,4 @@
-using NNop
+using ONIONop
 using NNlib: ⊠, make_causal_mask, apply_attn_mask
 using Test
 using Statistics
@@ -8,19 +8,20 @@ import Zygote
 import Einops
 import Pkg
 
-#ENV["NNOP_TEST_AMDGPU"] = true
-#ENV["NNOP_TEST_CUDA"] = true
+#ENV["ONIONop_TEST_AMDGPU"] = true
+#ENV["ONIONop_TEST_CUDA"] = true
 
-if get(ENV, "NNOP_TEST_AMDGPU", "false") == "true"
+if get(ENV, "ONIONop_TEST_AMDGPU", "false") == "true"
     Pkg.add("AMDGPU")
     using AMDGPU
     kab = ROCBackend()
-elseif get(ENV, "NNOP_TEST_CUDA", "false") == "true"
+elseif get(ENV, "ONIONop_TEST_CUDA", "false") == "true"
     Pkg.add("CUDA")
     using CUDA
     kab = CUDABackend()
 else
-    error("No GPU backend is set.")
+    kab = nothing
+    # error("No GPU backend is set.")
 end
 
 function naive_softmax(x; dims = 1)
@@ -31,7 +32,7 @@ end
 
 function att_padding_mask(kpadmask, other_dim; T = Float32)
     pm = T.(kpadmask)
-    m = NNop.CRC.@ignore_derivatives log.(reshape(pm, size(pm,1), 1, 1, size(pm,2)) .* (similar(pm, 1, other_dim, 1, size(pm,2)) .= 1))
+    m = ONIONop.CRC.@ignore_derivatives log.(reshape(pm, size(pm,1), 1, 1, size(pm,2)) .* (similar(pm, 1, other_dim, 1, size(pm,2)) .= 1))
     return m
 end
 
@@ -86,7 +87,11 @@ function naive_llama_rope(q, k; cos, sin)
     return q, k
 end
 
-@testset "NNop" begin
+if isnothing(kab)
+@warn "No backend was selected so no tests ran."
+else
+
+@testset "ONIONop" begin
     @testset "Online Softmax: T=$T, seq_len=$seq_len" for T in (
         Float32, # TODO more types
     ), seq_len in (
@@ -94,14 +99,14 @@ end
     )
         x = Adapt.adapt(kab, rand(Float32, seq_len, 4))
         y1 = naive_softmax(x; dims=1)
-        y2 = NNop.online_softmax(x)
+        y2 = ONIONop.online_softmax(x)
         @test y1 ≈ y2
 
         ∇1 = Zygote.gradient(x) do x
             sum(naive_softmax(x))
         end
         ∇2 = Zygote.gradient(x) do x
-            sum(NNop.online_softmax(x))
+            sum(ONIONop.online_softmax(x))
         end
         @assert isapprox(∇1[1], ∇2[1]; atol=1f-6, rtol=1f-6)
     end
@@ -144,7 +149,7 @@ end
             sum(naive_attention(q, k, v, pair; causal, kpad_mask))
         end
         o2, ∇2 = Zygote.withgradient(q, k, v, pair) do q, k, v, pair
-            sum(NNop.flash_attention(q, k, v, pair; causal, kpad_mask))
+            sum(ONIONop.flash_attention(q, k, v, pair; causal, kpad_mask))
         end
         @test isapprox(o1, o2; atol=1e-3, rtol=1e-3)
         @test isapprox(∇1[1], ∇2[1]; atol=1e-3, rtol=1e-3)
@@ -166,14 +171,14 @@ end
         w = Adapt.adapt(kab, rand(Float32, emb))
 
         y1 = naive_rms_norm(x, w; offset)
-        y2 = NNop.rms_norm(x, w; offset)
+        y2 = ONIONop.rms_norm(x, w; offset)
         @test y1 ≈ y2
 
         ∇n = Zygote.gradient(x, w) do x, w
             sum(naive_rms_norm(x, w; offset))
         end
         ∇f = Zygote.gradient(x, w) do x, w
-            sum(NNop.rms_norm(x, w; offset))
+            sum(ONIONop.rms_norm(x, w; offset))
         end
         @test isapprox(∇n[1], ∇f[1]; atol=1f-6, rtol=1f-6)
         @test isapprox(∇n[2], ∇f[2]; atol=1f-6, rtol=1f-6)
@@ -189,14 +194,14 @@ end
         b = Adapt.adapt(kab, rand(Float32, emb))
 
         y1 = naive_layer_norm(x, w, b)
-        y2 = NNop.layer_norm(x, w, b)
+        y2 = ONIONop.layer_norm(x, w, b)
         @test y1 ≈ y2
 
         ∇n = Zygote.gradient(x, w, b) do x, w, b
             sum(naive_layer_norm(x, w, b))
         end
         ∇f = Zygote.gradient(x, w, b) do x, w, b
-            sum(NNop.layer_norm(x, w, b))
+            sum(ONIONop.layer_norm(x, w, b))
         end
         @test isapprox(∇n[1], ∇f[1]; atol=1f-6, rtol=1f-6)
         @test isapprox(∇n[2], ∇f[2]; atol=1f-6, rtol=1f-6)
@@ -230,7 +235,7 @@ end
             sum(naive_attention(q, k, v; causal, kpad_mask=nothing))
         end
         o2, ∇2 = Zygote.withgradient(q, k, v) do q, k, v
-            sum(NNop.flash_attention(q, k, v; causal, kpad_mask=nothing))
+            sum(ONIONop.flash_attention(q, k, v; causal, kpad_mask=nothing))
         end
         @test isapprox(o1, o2; atol=1e-3, rtol=1e-3)
         @test isapprox(∇1[1], ∇2[1]; atol=1e-3, rtol=1e-3)
@@ -247,7 +252,7 @@ end
     )
         dim = 16
         batch = 1
-        emb = NNop.LlamaRotaryEmbedding(dim)
+        emb = ONIONop.LlamaRotaryEmbedding(dim)
 
         position_ids = reshape(collect(0f0:Float32(L) - 1f0), :, 1)
         position_ids = repeat(position_ids; inner=(1, batch))
@@ -258,13 +263,13 @@ end
         q = Adapt.adapt(kab, ones(Float32, (dim, L, QH, batch)))
         k = Adapt.adapt(kab, ones(Float32, (dim, L, KH, batch)))
 
-        q1, k1 = NNop.llama_rope(q, k; cos, sin)
+        q1, k1 = ONIONop.llama_rope(q, k; cos, sin)
         q2, k2 = naive_llama_rope(q, k; cos, sin)
         @test isapprox(q1, q2; atol=1f-6, rtol=1f-6)
         @test isapprox(k1, k2; atol=1f-6, rtol=1f-6)
 
         ∇1 = Zygote.gradient(q, k) do q, k
-            qr, kr = NNop.llama_rope(q, k; cos, sin)
+            qr, kr = ONIONop.llama_rope(q, k; cos, sin)
             sum(qr) + sum(kr)
         end
         ∇2 = Zygote.gradient(q, k) do q, k
@@ -275,3 +280,5 @@ end
         @test isapprox(∇1[2], ∇2[2]; atol=1f-6, rtol=1f-6)
     end
 end
+
+end # backend check

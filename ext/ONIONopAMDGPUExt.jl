@@ -1,9 +1,9 @@
-module NNopAMDGPUExt
+module ONIONopAMDGPUExt
 
 using AMDGPU
-using NNop
+using ONIONop
 
-function NNop._shared_memory(::ROCBackend, device_id::Integer)
+function ONIONop._shared_memory(::ROCBackend, device_id::Integer)
     dev = AMDGPU.devices()[device_id]
     return UInt64(AMDGPU.HIP.properties(dev).sharedMemPerBlock)
 end
