@@ -8,6 +8,8 @@ import Zygote
 import Einops
 import Pkg
 
+Pkg.activate(temp=true)
+
 #ENV["ONIONop_TEST_AMDGPU"] = true
 #ENV["ONIONop_TEST_CUDA"] = true
 

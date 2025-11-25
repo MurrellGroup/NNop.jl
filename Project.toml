@@ -1,6 +1,6 @@
 name = "ONIONop"
 uuid = "021020d5-7125-488f-a684-9e3366e41e56"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Anton Oresten <antonoresten@gmail.com>", "Anton Smirnov <tonysmn97@gmail.com>"]
 
 [workspace]
